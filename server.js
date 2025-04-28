@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 
 // Pega a porta que o Railway vai fornecer automaticamente
-const port = process.env.PORT || 5050;
+const port = process.env.PORT || 8080;
 
 // Cria o servidor WebSocket
 const wss = new WebSocket.Server({ port });
