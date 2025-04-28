@@ -1,9 +1,10 @@
 const WebSocket = require('ws');
 
-// Railway define a porta em process.env.PORT
+// Pega a porta que o Railway vai fornecer automaticamente
 const port = process.env.PORT || 5050;
-const wss = new WebSocket.Server({ port });
 
+// Cria o servidor WebSocket
+const wss = new WebSocket.Server({ port });
 
 const usuarios = [
     { login: 'admin', senha: '12345' },
@@ -43,6 +44,10 @@ wss.on('connection', (ws) => {
     ws.on('error', (error) => {
         console.log('Erro na conexão do WebSocket:', error);
     });
+});
+
+wss.on('listening', () => {
+    console.log(`Servidor WebSocket rodando na porta ${port}`);
 });
 
 wss.on('error', (error) => {
