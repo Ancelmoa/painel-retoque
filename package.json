@@ -1,13 +1,14 @@
 {
-    "name": "plugin-server",
-    "version": "1.0.0",
-    "description": "Servidor WebSocket para plugin UXP",
-    "main": "server.js",
-    "scripts": {
-      "start": "node server.js"
-    },
-    "dependencies": {
-      "ws": "^8.17.0"
-    }
+  "name": "painel-retoque",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "ws": "^8.5.0"
   }
+}
+
   
