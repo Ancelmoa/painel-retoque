@@ -1,13 +1,15 @@
 const http = require('http');
 const WebSocket = require('ws');
 
-// Cria um servidor HTTP só para manter o Railway vivo
+const port = process.env.PORT || 8080;
+
+// Cria o servidor HTTP
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Servidor WebSocket ativo!');
 });
 
-// Conecta o WebSocket no mesmo servidor HTTP
+// Cria o WebSocket Server em cima do servidor HTTP
 const wss = new WebSocket.Server({ server });
 
 const usuarios = [
@@ -50,8 +52,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Porta que o Railway define automaticamente
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+server.listen(port, () => {
+  console.log(`Servidor HTTP e WebSocket rodando na porta ${port}`);
 });
