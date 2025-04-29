@@ -1,20 +1,14 @@
 const http = require('http');
 const WebSocket = require('ws');
 
-// Cria o servidor HTTP e WebSocket juntos na mesma porta
-const server = http.createServer((req, res) => {
+// Cria um servidor HTTP básico só para manter o processo Railway ativo
+http.createServer((req, res) => {
   res.writeHead(200);
   res.end('Servidor WebSocket ativo\n');
-});
+}).listen(process.env.HTTP_PORT || 3000);
 
-const wss = new WebSocket.Server({ server });
-
-const PORTA = process.env.PORT || 8080;
-
-server.listen(PORTA, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORTA}`);
-});
-
+// Servidor WebSocket
+const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 console.log('Servidor WebSocket rodando na porta 8080');
 
 const usuariosValidos = {
@@ -25,12 +19,28 @@ const usuariosValidos = {
 
 const clientes = new Map(); // socket -> { login, ip }
 const conexoesPorUsuario = new Map(); // login -> Set de IPs
-
-const LIMITE_DISPOSITIVOS = 1; // ✅ Altere aqui para permitir mais IPs por usuário
+const LIMITE_DISPOSITIVOS = 1;
 
 wss.on('connection', (socket, req) => {
     const ip = req.socket.remoteAddress;
-    console.log(`🔌 Nova conexão de IP: ${ip}`);
+    const origin = req.headers.origin || '';
+
+    console.log(`🔌 Nova conexão de IP: ${ip} | Origem: ${origin}`);
+
+    // Bloqueia origens suspeitas
+    if (!origin.includes('file://') && !origin.includes('localhost')) {
+        console.log(`🚫 Conexão recusada de origem: ${origin}`);
+        socket.terminate();
+        return;
+    }
+
+    // ⏱️ Timeout para login
+    const tempoLimiteLogin = setTimeout(() => {
+        if (!clientes.has(socket)) {
+            socket.terminate();
+            console.log(`⏱️ Desconectado por inatividade (sem login): ${ip}`);
+        }
+    }, 10000); // 10 segundos
 
     socket.on('message', (mensagem) => {
         try {
@@ -43,17 +53,16 @@ wss.on('connection', (socket, req) => {
                     const ipsDoUsuario = conexoesPorUsuario.get(dados.login) || new Set();
 
                     if (!ipsDoUsuario.has(ip) && ipsDoUsuario.size >= LIMITE_DISPOSITIVOS) {
-                        console.log(`⚠️  Usuário ${dados.login} tentou conectar de mais de ${LIMITE_DISPOSITIVOS} dispositivos. IP atual: ${ip}`);
+                        console.log(`⚠️  ${dados.login} excedeu o limite de dispositivos (${LIMITE_DISPOSITIVOS})`);
                         socket.send(JSON.stringify({
                             tipo: 'erro',
                             mensagem: `Limite de ${LIMITE_DISPOSITIVOS} dispositivos atingido para ${dados.login}`
                         }));
-                        // ⚠️ Mantém o socket aberto — o cliente decide o que fazer
-                        
                         return;
                     }
 
-                    // Autenticado
+                    clearTimeout(tempoLimiteLogin); // ✅ Login feito, remove timeout
+
                     socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
                     clientes.set(socket, { login: dados.login, ip });
                     ipsDoUsuario.add(ip);
@@ -93,7 +102,7 @@ wss.on('connection', (socket, req) => {
     });
 });
 
-// Ping para manter conexões WebSocket vivas
+// Ping para manter conexões ativas
 setInterval(() => {
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -102,6 +111,7 @@ setInterval(() => {
     });
 }, 30000);
 
+// Exibe usuários conectados
 function mostrarConectados() {
     console.log('🧑‍💻 Usuários conectados atualmente:');
     for (const [_, info] of clientes.entries()) {
