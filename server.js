@@ -11,14 +11,7 @@ http.createServer((req, res) => {
 const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 console.log('Servidor WebSocket rodando na porta 8080');
 
-const fs = require('fs');
-let usuariosValidos = {};
-
-try {
-    usuariosValidos = JSON.parse(fs.readFileSync('./usuarios.json', 'utf-8'));
-} catch (err) {
-    console.error('❗ Erro ao carregar usuarios.json:', err);
-}
+const usuariosValidos = JSON.parse(process.env.USUARIOS_JSON || '{}'); // Usando variável de ambiente para os usuários
 
 const clientes = new Map(); // socket -> { login, ip }
 const conexoesPorUsuario = new Map(); // login -> Set de IPs
@@ -43,7 +36,7 @@ wss.on('connection', (socket, req) => {
             socket.terminate();
             console.log(`⏱️ Desconectado por inatividade (sem login): ${ip}`);
         }
-    }, 30000); // 10 segundos
+    }, 30000); // 30 segundos
 
     socket.on('message', (mensagem) => {
         try {
