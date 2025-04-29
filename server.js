@@ -1,3 +1,13 @@
+const http = require('http');
+
+// Cria um servidor HTTP básico só para manter o processo vivo
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Servidor WebSocket ativo\n');
+}).listen(process.env.HTTP_PORT || 3000);
+
+
+
 const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
@@ -34,7 +44,8 @@ wss.on('connection', (socket, req) => {
                             tipo: 'erro',
                             mensagem: `Limite de ${LIMITE_DISPOSITIVOS} dispositivos atingido para ${dados.login}`
                         }));
-                        socket.close(); // Opcional: desconecta automaticamente
+                        // ⚠️ Mantém o socket aberto — o cliente decide o que fazer
+                        
                         return;
                     }
 
