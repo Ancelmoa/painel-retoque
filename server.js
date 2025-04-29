@@ -11,7 +11,8 @@ const clientes = new Map(); // Mapeia o socket para o login
 // Definindo credenciais válidas (pode ser expandido depois)
 const usuariosValidos = {
     'admin': '12345',  // login:senha
-    'usuario': 'senha'
+    'usuario': 'senha',
+    'Ancelmo': 'Genezis'
 };
 
 // Quando um cliente se conecta
