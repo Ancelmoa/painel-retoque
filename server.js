@@ -1,45 +1,53 @@
 const WebSocket = require('ws');
 
-// Cria o servidor WebSocket
 const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
-
 console.log('Servidor WebSocket rodando na porta 8080');
 
-// Lista de usuários válidos
 const usuariosValidos = {
     'admin': '12345',
     'usuario': 'senha',
     'Ancelmo': 'Genezis'
 };
 
-// Armazena os clientes conectados
 const clientes = new Map(); // socket -> { login, ip }
+const conexoesPorUsuario = new Map(); // login -> Set de IPs
+
+const LIMITE_DISPOSITIVOS = 1; // ✅ Altere aqui para permitir mais IPs por usuário
 
 wss.on('connection', (socket, req) => {
     const ip = req.socket.remoteAddress;
     console.log(`🔌 Nova conexão de IP: ${ip}`);
 
     socket.on('message', (mensagem) => {
-        console.log('📨 Mensagem recebida:', mensagem);
-
         try {
             const dados = JSON.parse(mensagem);
 
-            if (dados.tipo === 'login') {
-                if (dados.login && dados.senha) {
-                    const senhaCorreta = usuariosValidos[dados.login];
+            if (dados.tipo === 'login' && dados.login && dados.senha) {
+                const senhaCorreta = usuariosValidos[dados.login];
 
-                    if (senhaCorreta && dados.senha === senhaCorreta) {
-                        socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
+                if (senhaCorreta && dados.senha === senhaCorreta) {
+                    const ipsDoUsuario = conexoesPorUsuario.get(dados.login) || new Set();
 
-                        clientes.set(socket, { login: dados.login, ip });
-
-                        console.log(`✅ Login bem-sucedido: ${dados.login} (${ip})`);
-                        mostrarConectados();
-                    } else {
-                        socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
-                        console.log(`❌ Falha de login para ${dados.login} (${ip})`);
+                    if (!ipsDoUsuario.has(ip) && ipsDoUsuario.size >= LIMITE_DISPOSITIVOS) {
+                        console.log(`⚠️  Usuário ${dados.login} tentou conectar de mais de ${LIMITE_DISPOSITIVOS} dispositivos. IP atual: ${ip}`);
+                        socket.send(JSON.stringify({
+                            tipo: 'erro',
+                            mensagem: `Limite de ${LIMITE_DISPOSITIVOS} dispositivos atingido para ${dados.login}`
+                        }));
+                        socket.close(); // Opcional: desconecta automaticamente
+                        return;
                     }
+
+                    // Autenticado
+                    socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
+                    clientes.set(socket, { login: dados.login, ip });
+                    ipsDoUsuario.add(ip);
+                    conexoesPorUsuario.set(dados.login, ipsDoUsuario);
+
+                    console.log(`✅ Login bem-sucedido: ${dados.login} (${ip})`);
+                    mostrarConectados();
+                } else {
+                    socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
                 }
             }
         } catch (erro) {
@@ -51,8 +59,18 @@ wss.on('connection', (socket, req) => {
         const info = clientes.get(socket);
         clientes.delete(socket);
 
-        console.log(`🔌 Cliente desconectado: ${info?.login || 'desconhecido'} (${info?.ip || 'IP desconhecido'})`);
-        mostrarConectados();
+        if (info) {
+            const { login, ip } = info;
+            const ipsDoUsuario = conexoesPorUsuario.get(login);
+            if (ipsDoUsuario) {
+                ipsDoUsuario.delete(ip);
+                if (ipsDoUsuario.size === 0) {
+                    conexoesPorUsuario.delete(login);
+                }
+            }
+            console.log(`🔌 Cliente desconectado: ${login} (${ip})`);
+            mostrarConectados();
+        }
     });
 
     socket.on('error', (erro) => {
@@ -60,7 +78,7 @@ wss.on('connection', (socket, req) => {
     });
 });
 
-// Ping para manter conexões vivas
+// Ping para manter conexões WebSocket vivas
 setInterval(() => {
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -69,7 +87,6 @@ setInterval(() => {
     });
 }, 30000);
 
-// Função para mostrar conectados
 function mostrarConectados() {
     console.log('🧑‍💻 Usuários conectados atualmente:');
     for (const [_, info] of clientes.entries()) {
