@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 // Cria o servidor WebSocket
 const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 
-console.log('Servidor WebSocket rodando na porta 8080');
+console.log('🚀 Servidor WebSocket rodando na porta 8080');
 
 // Lista de usuários válidos
 const usuariosValidos = {
@@ -12,8 +12,8 @@ const usuariosValidos = {
     'Ancelmo': 'Genezis'
 };
 
-// Armazena os clientes conectados
-const clientes = new Map(); // socket -> { login, ip }
+// Armazena os clientes conectados: socket -> { login, ip }
+const clientes = new Map();
 
 wss.on('connection', (socket, req) => {
     const ip = req.socket.remoteAddress;
@@ -26,21 +26,18 @@ wss.on('connection', (socket, req) => {
             const dados = JSON.parse(mensagem);
 
             if (dados.tipo === 'login') {
-                if (dados.login && dados.senha) {
-                    const senhaCorreta = usuariosValidos[dados.login];
+                const { login, senha } = dados;
+                const senhaCorreta = usuariosValidos[login];
 
-                    if (senhaCorreta && dados.senha === senhaCorreta) {
-                        socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
+                if (senhaCorreta && senha === senhaCorreta) {
+                    socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
+                    clientes.set(socket, { login, ip });
 
-                        // Armazena o cliente conectado
-                        clientes.set(socket, { login: dados.login, ip });
-
-                        console.log(`✅ Login bem-sucedido: ${dados.login} (${ip})`);
-                        mostrarConectados();
-                    } else {
-                        socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
-                        console.log(`❌ Falha de login para ${dados.login} (${ip})`);
-                    }
+                    console.log(`✅ Login bem-sucedido: ${login} (${ip})`);
+                    mostrarConectados();
+                } else {
+                    socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
+                    console.log(`❌ Falha de login para ${login} (${ip})`);
                 }
             }
         } catch (erro) {
@@ -70,7 +67,7 @@ setInterval(() => {
     });
 }, 30000);
 
-// Função para mostrar conectados
+// Exibe usuários conectados no terminal
 function mostrarConectados() {
     console.log('🧑‍💻 Usuários conectados atualmente:');
     for (const [_, info] of clientes.entries()) {
