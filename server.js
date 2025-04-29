@@ -22,7 +22,7 @@ try {
 
 const clientes = new Map(); // socket -> { login, ip }
 const conexoesPorUsuario = new Map(); // login -> Set de IPs
-const LIMITE_DISPOSITIVOS = 1;
+const LIMITE_DISPOSITIVOS = 2;
 
 wss.on('connection', (socket, req) => {
     const ip = req.socket.remoteAddress;
