@@ -1,25 +1,36 @@
 const WebSocket = require('ws');
+const http = require('http');
 
-// Cria o servidor WebSocket
-const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
+// Cria o servidor HTTP
+const server = http.createServer((req, res) => {
+    if (req.url === '/status') {
+        // Responde com a lista de clientes conectados
+        const logins = Array.from(clientes.values());
+        const resposta = {
+            totalConectados: logins.length,
+            usuarios: logins
+        };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(resposta));
+    } else {
+        res.writeHead(404);
+        res.end();
+    }
+});
+
+// Cria o servidor WebSocket usando o mesmo servidor HTTP
+const wss = new WebSocket.Server({ server });
 
 console.log('Servidor WebSocket rodando na porta 8080');
 
 // Armazena os clientes conectados
-const clientes = new Map(); // Mapeia o socket para o login
-
-// Definindo credenciais válidas (pode ser expandido depois)
-const usuariosValidos = {
-    'admin': '12345',  // login:senha
-    'usuario': 'senha'
-};
+const clientes = new Map(); // Mapear o socket para o login
 
 // Quando um cliente se conecta
 wss.on('connection', (socket) => {
     console.log('Cliente conectado.');
-    console.log('Total de clientes conectados:', wss.clients.size);
+    console.log(`Total de clientes conectados: ${wss.clients.size}`);
 
-    // Quando o servidor recebe uma mensagem
     socket.on('message', (mensagem) => {
         console.log('Mensagem recebida:', mensagem);
 
@@ -30,11 +41,10 @@ wss.on('connection', (socket) => {
                 if (dados.login && dados.senha) {
                     console.log(`Tentativa de login: ${dados.login}`);
 
-                    // Verifica se o login e a senha estão corretos
-                    if (usuariosValidos[dados.login] && usuariosValidos[dados.login] === dados.senha) {
+                    // Simulação de validação de login
+                    if (dados.login === 'usuario' && dados.senha === 'senha') {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
 
-                        // Armazena o socket e o login
                         clientes.set(socket, dados.login);
 
                         console.log(`Usuário autenticado: ${dados.login}`);
@@ -44,7 +54,6 @@ wss.on('connection', (socket) => {
                         }
                     } else {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
-                        console.log(`Falha no login para usuário: ${dados.login}`);
                     }
                 }
             }
@@ -53,21 +62,18 @@ wss.on('connection', (socket) => {
         }
     });
 
-    // Quando a conexão é encerrada
     socket.on('close', () => {
         const login = clientes.get(socket);
         clientes.delete(socket);
 
         console.log(`Cliente desconectado: ${login || 'desconhecido'}`);
-        console.log('Total de clientes conectados:', wss.clients.size);
-        
+        console.log(`Total de clientes conectados: ${wss.clients.size}`);
         console.log('Usuários conectados atualmente:');
         for (const [sock, login] of clientes.entries()) {
             console.log(`- ${login}`);
         }
     });
 
-    // Quando ocorre algum erro
     socket.on('error', (erro) => {
         console.error('Erro na conexão:', erro);
     });
@@ -81,3 +87,9 @@ setInterval(() => {
         }
     });
 }, 30000);
+
+// Inicia o servidor HTTP na porta 8080 ou porta do Railway
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
