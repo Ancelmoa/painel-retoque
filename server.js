@@ -6,11 +6,18 @@ const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 console.log('Servidor WebSocket rodando na porta 8080');
 
 // Armazena os clientes conectados
-const clientes = new Map(); // Mapear o socket para o login
+const clientes = new Map(); // Mapeia o socket para o login
+
+// Definindo credenciais válidas (pode ser expandido depois)
+const usuariosValidos = {
+    'admin': '12345',  // login:senha
+    'usuario': 'senha'
+};
 
 // Quando um cliente se conecta
 wss.on('connection', (socket) => {
     console.log('Cliente conectado.');
+    console.log('Total de clientes conectados:', wss.clients.size);
 
     // Quando o servidor recebe uma mensagem
     socket.on('message', (mensagem) => {
@@ -21,10 +28,10 @@ wss.on('connection', (socket) => {
 
             if (dados.tipo === 'login') {
                 if (dados.login && dados.senha) {
-                    console.log(`Login recebido: ${dados.login}`);
+                    console.log(`Tentativa de login: ${dados.login}`);
 
-                    // Simulação de validação de login
-                    if (dados.login === 'usuario' && dados.senha === 'senha') {
+                    // Verifica se o login e a senha estão corretos
+                    if (usuariosValidos[dados.login] && usuariosValidos[dados.login] === dados.senha) {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
 
                         // Armazena o socket e o login
@@ -37,6 +44,7 @@ wss.on('connection', (socket) => {
                         }
                     } else {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
+                        console.log(`Falha no login para usuário: ${dados.login}`);
                     }
                 }
             }
@@ -51,6 +59,8 @@ wss.on('connection', (socket) => {
         clientes.delete(socket);
 
         console.log(`Cliente desconectado: ${login || 'desconhecido'}`);
+        console.log('Total de clientes conectados:', wss.clients.size);
+        
         console.log('Usuários conectados atualmente:');
         for (const [sock, login] of clientes.entries()) {
             console.log(`- ${login}`);
