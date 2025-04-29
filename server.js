@@ -1,16 +1,20 @@
 const http = require('http');
-
-// Cria um servidor HTTP básico só para manter o processo vivo
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('Servidor WebSocket ativo\n');
-}).listen(process.env.HTTP_PORT || 3000);
-
-
-
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
+// Cria o servidor HTTP e WebSocket juntos na mesma porta
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Servidor WebSocket ativo\n');
+});
+
+const wss = new WebSocket.Server({ server });
+
+const PORTA = process.env.PORT || 8080;
+
+server.listen(PORTA, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORTA}`);
+});
+
 console.log('Servidor WebSocket rodando na porta 8080');
 
 const usuariosValidos = {
