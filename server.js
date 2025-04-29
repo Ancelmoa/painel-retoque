@@ -5,76 +5,62 @@ const wss = new WebSocket.Server({ port: process.env.PORT || 8080 });
 
 console.log('Servidor WebSocket rodando na porta 8080');
 
-// Armazena os clientes conectados
-const clientes = new Map(); // Mapeia o socket para o login
-
-// Definindo credenciais válidas (pode ser expandido depois)
+// Lista de usuários válidos
 const usuariosValidos = {
-    'admin': '12345',  // login:senha
+    'admin': '12345',
     'usuario': 'senha',
     'Ancelmo': 'Genezis'
 };
 
-// Quando um cliente se conecta
-wss.on('connection', (socket) => {
-    console.log('Cliente conectado.');
-    console.log('Total de clientes conectados:', wss.clients.size);
+// Armazena os clientes conectados
+const clientes = new Map(); // socket -> { login, ip }
 
-    // Quando o servidor recebe uma mensagem
+wss.on('connection', (socket, req) => {
+    const ip = req.socket.remoteAddress;
+    console.log(`🔌 Nova conexão de IP: ${ip}`);
+
     socket.on('message', (mensagem) => {
-        console.log('Mensagem recebida:', mensagem);
+        console.log('📨 Mensagem recebida:', mensagem);
 
         try {
             const dados = JSON.parse(mensagem);
 
             if (dados.tipo === 'login') {
                 if (dados.login && dados.senha) {
-                    console.log(`Tentativa de login: ${dados.login}`);
+                    const senhaCorreta = usuariosValidos[dados.login];
 
-                    // Verifica se o login e a senha estão corretos
-                    if (usuariosValidos[dados.login] && usuariosValidos[dados.login] === dados.senha) {
+                    if (senhaCorreta && dados.senha === senhaCorreta) {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: true }));
 
-                        // Armazena o socket e o login
-                        clientes.set(socket, dados.login);
+                        clientes.set(socket, { login: dados.login, ip });
 
-                        console.log(`Usuário autenticado: ${dados.login}`);
-                        console.log('Usuários conectados atualmente:');
-                        for (const [sock, login] of clientes.entries()) {
-                            console.log(`- ${login}`);
-                        }
+                        console.log(`✅ Login bem-sucedido: ${dados.login} (${ip})`);
+                        mostrarConectados();
                     } else {
                         socket.send(JSON.stringify({ tipo: 'login', sucesso: false }));
-                        console.log(`Falha no login para usuário: ${dados.login}`);
+                        console.log(`❌ Falha de login para ${dados.login} (${ip})`);
                     }
                 }
             }
         } catch (erro) {
-            console.error('Erro ao processar mensagem:', erro);
+            console.error('❗ Erro ao processar mensagem:', erro);
         }
     });
 
-    // Quando a conexão é encerrada
     socket.on('close', () => {
-        const login = clientes.get(socket);
+        const info = clientes.get(socket);
         clientes.delete(socket);
 
-        console.log(`Cliente desconectado: ${login || 'desconhecido'}`);
-        console.log('Total de clientes conectados:', wss.clients.size);
-        
-        console.log('Usuários conectados atualmente:');
-        for (const [sock, login] of clientes.entries()) {
-            console.log(`- ${login}`);
-        }
+        console.log(`🔌 Cliente desconectado: ${info?.login || 'desconhecido'} (${info?.ip || 'IP desconhecido'})`);
+        mostrarConectados();
     });
 
-    // Quando ocorre algum erro
     socket.on('error', (erro) => {
-        console.error('Erro na conexão:', erro);
+        console.error('❗ Erro na conexão:', erro);
     });
 });
 
-// Mantém o servidor ativo
+// Ping para manter conexões vivas
 setInterval(() => {
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -82,3 +68,11 @@ setInterval(() => {
         }
     });
 }, 30000);
+
+// Função para mostrar conectados
+function mostrarConectados() {
+    console.log('🧑‍💻 Usuários conectados atualmente:');
+    for (const [_, info] of clientes.entries()) {
+        console.log(`- ${info.login} (${info.ip})`);
+    }
+}
